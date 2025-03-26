@@ -15,50 +15,68 @@ const pool = new Pool({
 
 app.use(express.json());
 
-//Додавання нового юзера (Create)
-app.post('/users', async(req,res) =>{
-    const {id, username, password} = req.body;
+// Додавання нового користувача (Create)
+app.post('/users', async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *',
+      [username, password]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Отримання всіх користувачів (Read)
+app.get('/users', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM users');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Оновлення інформації про користувача (Update)
+app.put('/users/:id', async (req, res) => {
+  const { id } = req.params;
+  const { username, password } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE users SET username = $1, password = $2 WHERE id = $3 RETURNING *',
+      [username, password, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+//Видалення користувача по ID
+app.delete('/users/:id', async (req, res) => {
+    const userId = req.params.id;
+  
     try {
-        const result = await pool.query(
-            'INSERT INTO users (id, username, password) VALUES ($1, $2, $3) RETURNING *',
-            [id,username,password]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch(err) {
-        console.error(err);
-        res.status(500).json({error: 'Internal Server Error'});
+      const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [userId]);
+  
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+  
+      res.json({ message: 'User deleted successfully', deletedUser: result.rows[0] });
+    } catch (err) {
+      console.error('Database error:', err);
+      res.status(500).json({ error: 'Internal Server Error' });
     }
-});
-
-//Отримання всіх юзерів (Read)
-app.get('users', async (req,res) =>{
-    try{
-        const result = await pool.query('SELECT * FROM users');
-        res.json(results.row[0]);
-    }catch (err){
-        console.error(err);
-        res.status(500).json({error: 'Internal Server Error'});
-    }
-});
-
-// Оновлення інформації про книгу (Update)
-app.put('/users/:id', async(req,res) => {
-    const { id } = req.params;
-    const { username, password } = req.body;
-    try{
-        const result = await pool.query(
-            'UPDATE users SET username = $1, password = $2, WHERE id = $4 RETURNING *',
-            [id, username,password]
-        );
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Book not found' });
-          }
-          res.json(result.rows[0]);
-        } catch (err) {
-          console.error(err);
-          res.status(500).json({ error: 'Internal Server Error' });
-        }
-      });
+  });
 
 // Запуск сервера
 app.listen(port, () => {
