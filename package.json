@@ -16,5 +16,9 @@
     "url": "https://github.com/rxxzeee/esports-tourney-master-backend/issues"
   },
   "homepage": "https://github.com/rxxzeee/esports-tourney-master-backend#readme",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.14.1"
+  }
 }
