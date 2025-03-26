@@ -1,12 +1,32 @@
-const http = require('http');
+const express = require('express');
+const { Pool } = require('pg');
 
-const server = http.createServer((req, res) =>{
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/html');
-    res.end('<h1>Hello World!</h1><p>Simple server with Node.js>/p>');
+const app = express();
+const port = 3000;
+
+// Налаштування підключення до бази даних PostgreSQL
+const pool = new Pool({
+  user: 'postgres',
+  host: 'localhost',
+  database: 'sevice_db',
+  password: '1234',
+  port: 5432,
 });
 
-const PORT = 3000;
-server.listen(PORT, () => {
-    console.log('Server is started on http://localhost:${PORT}');
-})
+// Маршрут для перевірки підключення до бази даних
+app.get('/db', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query('SELECT NOW()');
+    res.send(result.rows);
+    client.release();
+  } catch (err) {
+    console.error(err);
+    res.send('Error ' + err);
+  }
+});
+
+// Запуск сервера
+app.listen(port, () => {
+  console.log(`Сервер запущено на http://localhost:${port}`);
+});
