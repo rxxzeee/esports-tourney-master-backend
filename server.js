@@ -1,144 +1,88 @@
-const express = require('express');
-const { Pool } = require('pg');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const express = require("express");
+const { Pool } = require("pg");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const cors = require("cors");
 
 const app = express();
 const port = 3000;
+const SECRET_KEY = "your_secret_key"; // Змінюй для безпеки!
 
-// Налаштування підключення до бази даних PostgreSQL
+// Підключення до PostgreSQL
 const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'service_db',
-  password: '1234',
+  user: "postgres",
+  host: "localhost",
+  database: "service_db",
+  password: "1234",
   port: 5432,
 });
 
 app.use(express.json());
+app.use(cors()); // Дозволяє запити з фронтенду
 
-const SECRET_KEY = 'your-secret-key'; // Заміни на свій секретний ключ
-
-// Функція для генерації JWT токена
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, SECRET_KEY, { expiresIn: '1h' });
-};
-
-// Додавання нового користувача (Create)
-app.post('/users', async (req, res) => {
+// ✅ Реєстрація нового користувача
+app.post("/register", async (req, res) => {
   const { username, password } = req.body;
   try {
-    const hashedPassword = await bcrypt.hash(password, 10); // Хешуємо пароль
+    // Перевіряємо, чи користувач вже існує
+    const userExists = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
+    if (userExists.rows.length > 0) {
+      return res.status(400).json({ error: "Username already exists" });
+    }
+
+    // Хешуємо пароль
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Створюємо нового користувача в БД
     const result = await pool.query(
-      'INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *',
+      "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *",
       [username, hashedPassword]
     );
-    res.status(201).json(result.rows[0]);
+    
+    res.status(201).json({ message: "User registered", user: result.rows[0] });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-// Вхід користувача (Login) і генерування JWT
-app.post('/login', async (req, res) => {
+// ✅ Логін користувача
+app.post("/login", async (req, res) => {
   const { username, password } = req.body;
-
   try {
-    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-    
+    // Шукаємо користувача в БД
+    const result = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
+
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(401).json({ error: "Invalid username or password" });
     }
 
     const user = result.rows[0];
 
-    // Перевірка пароля
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    // Перевіряємо пароль
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid username or password" });
     }
 
-    // Генерація JWT токена
-    const token = generateToken(user.id);
-    res.json({ token });
+    // Генеруємо JWT токен
+    const token = jwt.sign({ userId: user.id, username: user.username }, SECRET_KEY, { expiresIn: "1h" });
+
+    res.json({ message: "Login successful", token });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-// Мідлвар для перевірки JWT
-const authenticateToken = (req, res, next) => {
-  const token = req.header('Authorization')?.split(' ')[1]; // Очікуємо, що токен буде переданий у заголовку Authorization
-
-  if (!token) {
-    return res.status(403).json({ error: 'Access denied' });
-  }
-
-  jwt.verify(token, SECRET_KEY, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid token' });
-    }
-    req.user = user;
-    next();
-  });
-};
-
-// Отримання всіх користувачів (Read) - доступно тільки для авторизованих
-app.get('/users', authenticateToken, async (req, res) => {
+// ✅ Отримання всіх користувачів (для тесту)
+app.get("/users", async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM users');
+    const result = await pool.query("SELECT id, username, password FROM users"); // Не передаємо паролі!
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// Оновлення інформації про користувача (Update) - доступно тільки для авторизованих
-app.put('/users/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const { username, password } = req.body;
-
-  if (req.user.userId !== parseInt(id)) {
-    return res.status(403).json({ error: 'You can only update your own information' });
-  }
-
-  try {
-    const result = await pool.query(
-      'UPDATE users SET username = $1, password = $2 WHERE id = $3 RETURNING *',
-      [username, password, id]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// Видалення користувача по ID - доступно тільки для авторизованих
-app.delete('/users/:id', authenticateToken, async (req, res) => {
-  const userId = req.params.id;
-
-  if (req.user.userId !== parseInt(userId)) {
-    return res.status(403).json({ error: 'You can only delete your own account' });
-  }
-
-  try {
-    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [userId]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({ message: 'User deleted successfully', deletedUser: result.rows[0] });
-  } catch (err) {
-    console.error('Database error:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
