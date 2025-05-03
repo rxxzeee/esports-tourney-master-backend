@@ -1,14 +1,30 @@
 const express = require("express");
-const { register, login, getUsers } = require("../controllers/authController");
+const {
+  register,
+  login,
+  getUsers,
+  updateProfile,
+  blockUser,
+  deleteUser,
+  getProfile
+} = require("../controllers/authController");
+
 const verifyToken = require("../middleware/authMiddleware");
+const isAdmin     = require("../middleware/isAdmin");
 
 const router = express.Router();
 
-// Роут для реєстрації та логіну
+// Публічні маршрути
 router.post("/register", register);
-router.post("/login", login);
+router.post("/login",    login);
 
-// Роут для отримання користувачів, з перевіркою токену
-router.get("/users", verifyToken, getUsers);
+// Захищені маршрути
+router.get("/users",      verifyToken, getUsers);
+router.put("/profile",    verifyToken, updateProfile);
+router.get("/profile",    verifyToken, getProfile);
+
+// Адмінські маршрути
+router.patch("/users/:id/block", verifyToken, isAdmin, blockUser);
+router.delete("/users/:id",      verifyToken, isAdmin, deleteUser);
 
 module.exports = router;

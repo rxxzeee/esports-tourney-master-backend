@@ -1,19 +1,15 @@
-// /middleware/verifyToken.js
 const jwt = require("jsonwebtoken");
 const { SECRET_KEY } = require("../config/config");
 
 module.exports = (req, res, next) => {
-  const token = req.header("Authorization")?.split(" ")[1];  // Отримуємо токен з заголовка
-  if (!token) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  const authHeader = req.header("Authorization") || "";
+  const token = authHeader.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
 
   try {
-    // Перевіряємо токен
-    const decoded = jwt.verify(token, SECRET_KEY);
-    req.user = decoded;  // Додаємо інформацію про користувача в запит
+    req.user = jwt.verify(token, SECRET_KEY);
     next();
-  } catch (err) {
+  } catch {
     res.status(401).json({ error: "Invalid token" });
   }
 };

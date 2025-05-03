@@ -1,25 +1,28 @@
-// /app.js або /server.js
+// server.js
 const express = require("express");
 const cors = require("cors");
-const authRoutes = require("./routes/authRoutes");  // Імпортуємо маршрути
-
 require("dotenv").config();
+
+const authRoutes = require("./routes/authRoutes");
+const tournamentRoutes = require("./routes/tournamentRoutes");
+const teamRoutes = require("./routes/teamRoutes"); // Додано імпорт
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Middleware мають бути першими
 app.use(express.json());
-
-// Налаштування CORS (можна змінити залежно від вашої конфігурації)
 app.use(cors({
-  origin: "http://localhost:8080",  // Фронтенд-адреса
-  methods: "GET, POST, PUT, DELETE",
-  allowedHeaders: "Content-Type, Authorization"
+  origin: "http://localhost:8080",
+  methods: "GET,POST,PUT,DELETE",
+  allowedHeaders: "Content-Type,Authorization"
 }));
 
-// Використання маршрутів
+// Підключення маршрутів
 app.use("/auth", authRoutes);
+app.use("/tournaments", tournamentRoutes);
+app.use("/teams", teamRoutes); // Після ініціалізації app
 
 app.listen(port, () => {
-  console.log(`Сервер запущено на http://localhost:${port}`);
+  console.log(`Server running on http://localhost:${port}`);
 });
