@@ -1,10 +1,16 @@
 const pool = require("../config/db");
 
 module.exports = async (req, res, next) => {
+  // Перевірка наявності користувача в req.user
+  if (!req.user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
   const { teamId } = req.params;
   const userId = req.user.userId;
 
   try {
+    // Перевірка, чи є користувач капітаном команди
     const result = await pool.query(
       `SELECT 1 FROM team_members 
        WHERE team_id = $1 AND user_id = $2 AND is_captain = TRUE`,

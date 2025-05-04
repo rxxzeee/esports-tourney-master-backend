@@ -1,6 +1,7 @@
-const pool = require("../config/db");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
+const pool       = require("../config/db");
+const jwt        = require("jsonwebtoken");
+const bcrypt     = require("bcrypt");
+const crypto     = require("crypto");
 const { SECRET_KEY } = require("../config/config");
 
 exports.register = async (req, res) => {
@@ -36,32 +37,55 @@ exports.login = async (req, res) => {
   const { username, password } = req.body;
 
   try {
+    // 1) Знаходимо користувача
     const result = await pool.query(
-      "SELECT id, username, password, role_id FROM users WHERE username = $1", 
+      "SELECT id, username, password, role_id FROM users WHERE username = $1",
       [username]
     );
     if (!result.rows.length) {
-      return res.status(401).json({ error: "Invalid username or password" });
+      return res.status(401).json({ error: "Невірні облікові дані" });
     }
-
     const user = result.rows[0];
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid username or password" });
+
+    // 2) Перевіряємо пароль
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
+      return res.status(401).json({ error: "Невірні облікові дані" });
     }
 
-    const token = jwt.sign(
-      { userId: user.id, username: user.username, role: user.role_id },
+    const userId = user.id;
+    const role   = user.role_id;
+
+    // 3) Генеруємо accessToken
+    const accessToken = jwt.sign(
+      { userId, username: user.username, role },
       SECRET_KEY,
       { expiresIn: "1h" }
     );
-    res.json({ message: "Login successful", token });
+
+    // 4) Генеруємо refreshToken
+    const refreshToken = crypto.randomBytes(64).toString("hex");
+    const expiresAt    = new Date(Date.now() + 7 * 24*60*60*1000); // на 7 днів
+
+    // 5) Зберігаємо refreshToken у БД
+    await pool.query(
+      `INSERT INTO refresh_tokens(token, user_id, expires_at)
+       VALUES ($1, $2, $3)`,
+      [refreshToken, userId, expiresAt]
+    );
+
+    // 6) Повертаємо обидва токени
+    res.json({
+      message: "Успішний вхід",
+      accessToken,
+      refreshToken
+    });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Внутрішня помилка сервера" });
   }
 };
-
 
 // 3) Повернення всіх користувачів
 exports.getUsers = async (req, res) => {
@@ -148,4 +172,42 @@ exports.getProfile = async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
   }
+};
+
+// Контролер для оновлення accessToken
+exports.refreshToken = async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    return res.status(400).json({ error: "Refresh token не передано" });
+  }
+
+  // 1) Знаходимо токен у БД
+  const { rows } = await pool.query(
+    "SELECT user_id, expires_at FROM refresh_tokens WHERE token = $1",
+    [refreshToken]
+  );
+  if (!rows.length) {
+    return res.status(403).json({ error: "Невірний refresh token" });
+  }
+
+  const { user_id, expires_at } = rows[0];
+  if (new Date() > expires_at) {
+    // очищаємо прострочений токен
+    await pool.query("DELETE FROM refresh_tokens WHERE token = $1", [refreshToken]);
+    return res.status(403).json({ error: "Refresh token протерміновано" });
+  }
+
+  // 2) Формуємо новий accessToken
+  const { rows: u } = await pool.query(
+    "SELECT username, role_id FROM users WHERE id = $1",
+    [user_id]
+  );
+  const payload = {
+    userId:   user_id,
+    username: u[0].username,
+    role:     u[0].role_id
+  };
+  const newAccessToken = jwt.sign(payload, SECRET_KEY, { expiresIn: "1h" });
+
+  res.json({ accessToken: newAccessToken });
 };

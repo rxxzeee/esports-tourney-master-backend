@@ -5,14 +5,17 @@ module.exports = async (req, res, next) => {
   const tournamentId = req.params.id;
 
   try {
+    // Отримуємо власника турніру з бази
     const { rows } = await pool.query(
       "SELECT created_by FROM tournaments WHERE id = $1",
       [tournamentId]
     );
     
-    if (!rows.length || (rows[0].created_by !== userId && req.user.role !== 2)) {
+    // Якщо турнір не знайдено або користувач не є власником або адміністратором
+    if (!rows || !rows.length || (rows[0].created_by !== userId && req.user.role !== 2)) {
       return res.status(403).json({ error: "Доступ заборонено" });
     }
+    
     next();
   } catch (err) {
     console.error(err);

@@ -144,3 +144,13 @@ exports.joinTeam = async (req, res) => {
     }
   };
   
+  // GET /teams/:id/rating
+exports.getTeamRating = async (req, res) => {
+  const teamId = parseInt(req.params.id, 10);
+  const { rows } = await pool.query(
+    "SELECT rating, updated_at FROM team_ratings WHERE team_id = $1",
+    [teamId]
+  );
+  if (!rows.length) return res.status(404).json({ error: "Team not found" });
+  res.json(rows[0]);
+};
