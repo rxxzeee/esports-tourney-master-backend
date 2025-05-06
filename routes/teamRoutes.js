@@ -8,6 +8,7 @@ const isCaptain = require("../middleware/isCaptain");
 // Дозволяється лише авторизованим користувачам
 router.post("/", verifyToken, teamController.createTeam);
 
+
 // Додавання учасника в команду (тільки для капітана команди)
 // Перевірка через middleware `isCaptain`, щоб лише капітан міг додавати учасників
 router.post("/:teamId/members", verifyToken, isCaptain, teamController.addMember);
@@ -21,5 +22,7 @@ router.get("/:id", verifyToken, teamController.getTeamDetails);
 
 // Отримання рейтингу команди
 router.get("/:id/rating", verifyToken, teamController.getTeamRating);
+
+router.get('/', teamController.getAllTeams);
 
 module.exports = router;

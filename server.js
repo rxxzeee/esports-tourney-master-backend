@@ -16,7 +16,7 @@ const port = process.env.PORT || 8080;
 // Middleware мають бути першими
 app.use(express.json()); // Парсинг JSON-тіла запиту
 app.use(cors({
-  origin: "http://localhost:8080", // Дозволити лише цей домен
+  origin: "http://localhost:3000", // Дозволити лише цей домен
   methods: "GET,POST,PUT,DELETE", // Дозволені методи
   allowedHeaders: "Content-Type,Authorization" // Дозволені заголовки
 }));

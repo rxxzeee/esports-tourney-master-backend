@@ -1,6 +1,6 @@
 const pool       = require("../config/db");
 const jwt        = require("jsonwebtoken");
-// const bcrypt     = require("bcrypt");
+// const bcrypt     = require("bcrypt"); // Видалено, якщо не потрібно шифрування
 const crypto     = require("crypto");
 const { SECRET_KEY } = require("../config/config");
 
@@ -17,13 +17,12 @@ exports.register = async (req, res) => {
       return res.status(400).json({ error: "Username already exists" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
+    // Зберігаємо пароль як є (НЕБЕЗПЕЧНО для продакшну)
     const result = await pool.query(
       `INSERT INTO users (username, password, role_id) 
        VALUES ($1, $2, $3) 
        RETURNING id, username, role_id`, 
-      [username, hashedPassword, role]
+      [username, password, role]
     );
     res.status(201).json({ message: "User registered", user: result.rows[0] });
   } catch (err) {
@@ -47,9 +46,8 @@ exports.login = async (req, res) => {
     }
     const user = result.rows[0];
 
-    // 2) Перевіряємо пароль
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) {
+    // 2) Перевіряємо пароль (без шифрування)
+    if (password !== user.password) {
       return res.status(401).json({ error: "Невірні облікові дані" });
     }
 
