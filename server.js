@@ -11,7 +11,7 @@ const matchRoutes = require("./routes/matchRoutes");
 const dailyTaskRoutes = require("./routes/dailyTaskRoutes");
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080;
 
 // Middleware мають бути першими
 app.use(express.json()); // Парсинг JSON-тіла запиту
