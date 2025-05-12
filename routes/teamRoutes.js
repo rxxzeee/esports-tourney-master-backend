@@ -3,26 +3,52 @@ const router = express.Router();
 const teamController = require("../controllers/teamController");
 const verifyToken = require("../middleware/authMiddleware");
 const isCaptain = require("../middleware/isCaptain");
+const { check } = require('express-validator');
 
 // Створення команди
-// Дозволяється лише авторизованим користувачам
-router.post("/", verifyToken, teamController.createTeam);
+router.post("/", 
+    verifyToken,
+    [
+        check('name').isLength({ min: 3, max: 50 }).withMessage('Назва команди повинна містити від 3 до 50 символів'),
+        check('discipline').isIn(['Футбол', 'Баскетбол', 'Волейбол', 'Кіберспорт']).withMessage('Невірна дисципліна')
+    ],
+    teamController.createTeam
+);
 
+// Додавання учасника (тільки для капітана)
+router.post("/:teamId/members", 
+    verifyToken, 
+    isCaptain, 
+    teamController.addMember
+);
 
-// Додавання учасника в команду (тільки для капітана команди)
-// Перевірка через middleware `isCaptain`, щоб лише капітан міг додавати учасників
-router.post("/:teamId/members", verifyToken, isCaptain, teamController.addMember);
+// Приєднання до команди
+router.post("/:teamId/join", 
+    verifyToken, 
+    teamController.joinTeam
+);
 
-// Самостійне приєднання до команди
-// Перевірка через middleware `verifyToken`, щоб користувач був авторизований
-router.post("/:teamId/join", verifyToken, teamController.joinTeam);
+// Інформація про команду
+router.get("/:id", 
+    verifyToken, 
+    teamController.getTeamDetails
+);
 
-// Отримання інформації про команду
-router.get("/:id", verifyToken, teamController.getTeamDetails);
+// Рейтинг команди
+router.get("/:id/rating", 
+    verifyToken, 
+    teamController.getTeamRating
+);
 
-// Отримання рейтингу команди
-router.get("/:id/rating", verifyToken, teamController.getTeamRating);
+// Профіль команди
+router.get("/:id/profile", 
+    verifyToken, 
+    teamController.getTeamProfile
+);
 
-router.get('/', teamController.getAllTeams);
+// Список всіх команд
+router.get("/", 
+    teamController.getAllTeams
+);
 
 module.exports = router;
