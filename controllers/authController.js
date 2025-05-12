@@ -6,7 +6,7 @@ const { SECRET_KEY } = require("../config/config");
 
 exports.register = async (req, res) => {
   const { username, password } = req.body;
-  const role = 1; // player
+  const role = 2; // player
 
   try {
     const { rows } = await pool.query(
