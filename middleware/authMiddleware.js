@@ -1,30 +1,19 @@
-const jwt = require("jsonwebtoken");
-const { SECRET_KEY } = require("../config/config");
+const jwt = require('jsonwebtoken');
+const { SECRET_KEY } = require('../config/config');
 
-module.exports = (req, res, next) => {
-  const authHeader = req.header("Authorization") || "";
-  
-  // Перевірка наявності Bearer та токену
-  if (!authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Unauthorized. Invalid token format" });
+module.exports = function verifyToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) return res.status(401).json({ error: 'No token provided' });
+
+  const parts = authHeader.split(' ');
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    return res.status(401).json({ error: 'Invalid Authorization header format' });
   }
 
-  const token = authHeader.split(" ")[1];
-  if (!token) {
-    return res.status(401).json({ error: "Unauthorized. Token missing" });
-  }
-
-  try {
-    // Верифікація токену
-    req.user = jwt.verify(token, SECRET_KEY);
+  const token = parts[1];
+  jwt.verify(token, SECRET_KEY, (err, decoded) => {
+    if (err) return res.status(403).json({ error: 'Invalid or expired token' });
+    req.user = decoded;
     next();
-  } catch (err) {
-    if (err instanceof jwt.TokenExpiredError) {
-      return res.status(401).json({ error: "Token expired" });
-    }
-    if (err instanceof jwt.JsonWebTokenError) {
-      return res.status(401).json({ error: "Invalid token" });
-    }
-    res.status(500).json({ error: "Server error during token verification" });
-  }
+  });
 };
