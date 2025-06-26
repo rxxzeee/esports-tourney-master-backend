@@ -18,7 +18,7 @@ exports.register = async (req, res) => {
     const user = result.rows[0];
 
     // Generate tokens immediately
-    const accessToken = jwt.sign({ userId: user.id, username, role }, SECRET_KEY, { expiresIn: '1h' });
+    const accessToken = jwt.sign({ userId: user.id, username, role: user.role_id }, SECRET_KEY, { expiresIn: '1h' });
     const refreshToken = crypto.randomBytes(64).toString('hex');
     const expiresAt = new Date(Date.now() + 7*24*60*60*1000);
 
@@ -27,7 +27,15 @@ exports.register = async (req, res) => {
       [refreshToken, user.id, expiresAt]
     );
 
-    res.status(201).json({ message: 'User registered', user, accessToken, refreshToken });
+    res.status(201).json({
+      message: 'User registered',
+      user,
+      token: accessToken,
+      accessToken,
+      refreshToken,
+      role: user.role_id,
+      username: user.username
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -58,7 +66,14 @@ exports.login = async (req, res) => {
       [refreshToken, user.id, expiresAt]
     );
 
-    res.json({ message: 'Login successful', accessToken, refreshToken });
+    res.json({
+      message: 'Login successful',
+      token: accessToken,
+      accessToken,
+      refreshToken,
+      role: user.role_id,
+      username: user.username
+    });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal Server Error' });

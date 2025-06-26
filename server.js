@@ -136,11 +136,21 @@ app.get('/auth/steam/return',
     // 4. Редіректимо на фронтенд з усіма потрібними параметрами
     const username = encodeURIComponent(req.user.username);
     const role = encodeURIComponent(req.user.role_id);
+    // Додаємо і token, і accessToken (однакові значення)
     res.redirect(
-      `http://localhost:8080/steam-callback?token=${accessToken}&refreshToken=${refreshToken}&username=${username}&role=${role}`
+      `http://localhost:8080/steam-callback?token=${accessToken}&accessToken=${accessToken}&refreshToken=${refreshToken}&username=${username}&role=${role}`
     );
   }
 );
+
+// Приклад для звичайного логіну/реєстрації (додайте у відповідний роут):
+// res.json({
+//   token: accessToken,
+//   accessToken,
+//   refreshToken,
+//   role: user.role_id,
+//   username: user.username
+// });
 
 // Обробка помилок
 app.use((err, req, res, next) => {
