@@ -6,7 +6,7 @@ const session = require("express-session");
 const passport = require("passport");
 const SteamStrategy = require("passport-steam").Strategy;
 const { Pool } = require("pg");
-
+//
 // Імпорт маршрутів
 const authRoutes = require("./routes/authRoutes");
 const tournamentRoutes = require("./routes/tournamentRoutes");
